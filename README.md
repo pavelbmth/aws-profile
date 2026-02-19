@@ -166,15 +166,92 @@ Result:
 $AWS_CONFIG_FILE       (if set)
 ```
 
-Profiles must follow the standard format:
+### AWS Config File Structure
+
+`aws-profile` supports both **legacy** and **modern** AWS SSO config formats.
+
+#### Modern Format (Recommended) — SSO Session
+
+The modern format uses a shared `[sso-session]` block that multiple profiles can reference:
 
 ```ini
-[profile my-account]
-sso_start_url  = https://my-org.awsapps.com/start
-sso_region     = eu-west-1
-sso_account_id = 123456789012
-sso_role_name  = DeveloperAccess
-region         = eu-west-1
+# Shared SSO session
+[sso-session my-company]
+sso_start_url = https://my-company.awsapps.com/start
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+
+# Profile 1
+[profile production]
+sso_session = my-company
+sso_account_id = 111122223333
+sso_role_name = AdministratorAccess
+region = us-east-1
+
+# Profile 2
+[profile development]
+sso_session = my-company
+sso_account_id = 444455556666
+sso_role_name = DeveloperAccess
+region = eu-west-1
+
+# Default profile (no "profile" prefix)
+[default]
+sso_session = my-company
+sso_account_id = 111122223333
+sso_role_name = ReadOnlyAccess
+region = us-east-1
+```
+
+**Benefits:**
+- Single SSO login works for all profiles using the same session
+- Cleaner config with less duplication
+- Supported by AWS CLI v2.0+
+
+#### Legacy Format — Inline SSO Config
+
+The legacy format includes SSO details in each profile:
+
+```ini
+[profile production]
+sso_start_url = https://my-company.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 111122223333
+sso_role_name = AdministratorAccess
+region = us-east-1
+
+[profile development]
+sso_start_url = https://my-company.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 444455556666
+sso_role_name = DeveloperAccess
+region = eu-west-1
+```
+
+#### Required Fields
+
+For SSO profiles, you need:
+- **sso_start_url** — Your AWS SSO portal URL
+- **sso_account_id** — The AWS account ID (12 digits)
+- **sso_role_name** — The IAM role name to assume
+- **region** — Default AWS region for this profile
+
+#### Non-SSO Profiles (IAM Users)
+
+For traditional IAM user profiles with access keys:
+
+```ini
+[profile my-iam-user]
+region = us-west-2
+# Credentials go in ~/.aws/credentials (not ~/.aws/config)
+```
+
+Then in `~/.aws/credentials`:
+
+```ini
+[my-iam-user]
+aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
 ---
