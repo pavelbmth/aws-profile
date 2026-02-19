@@ -10,18 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] — 2026-02-19
 
 ### Added
-- Interactive TUI menu with fzf (arrow-key navigation) and whiptail fallback
-- `login` action: `aws sso login` + `export AWS_PROFILE`
-- `switch` action: set `AWS_PROFILE` without running SSO login
-- `whoami` action: `sts:GetCallerIdentity` for the current profile
-- `logout` action: `aws sso logout` + `unset AWS_PROFILE`
-- `console` action: open the AWS web console in the default browser
-- Non-interactive / scripting mode (`aws-profile login`, `aws-profile switch`, …)
+- Interactive TUI menu with k9s-style design
+- Smart profile switching with auto-login detection
+- Profile picker with live preview panel showing:
+  - Account ID
+  - SSO URL
+  - Role name
+  - Region
+  - SSO session details
+- Mouse text selection support in preview panel
+- Color-coded active profile indicator (green)
+- Menu loop navigation (Esc goes back to main menu)
+- Actions:
+  - `login` - SSO login + export AWS_PROFILE
+  - `switch` - Smart switch (auto-detects if login needed)
+  - `whoami` - Show sts:GetCallerIdentity
+  - `logout` - SSO logout + unset AWS_PROFILE
+  - `console` - Open AWS console in browser
+- Non-interactive mode for scripting
 - Shell prompt helper `__awp_ps1` for PS1/PROMPT integration
-- `--help` and `--version` flags
-- Zsh completion (`completions/_aws-profile.zsh`)
-- Bash completion (`completions/aws-profile.bash`)
-- One-liner `install.sh` installer
+- Support for both legacy and new AWS config formats (sso-session)
+- Zsh and Bash completion scripts
+- One-liner installer and uninstaller
 - ShellCheck CI via GitHub Actions
-- Guard against double-sourcing
-- Color output gracefully disabled when not a TTY
+- `--help` and `--version` flags
+- Nord color scheme (k9s-inspired)

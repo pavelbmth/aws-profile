@@ -16,7 +16,7 @@ readonly _AWS_PROFILE_LOADED=1
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-readonly _AWP_VERSION="1.1.0"
+readonly _AWP_VERSION="1.0.0"
 
 # ---------------------------------------------------------------------------
 # Colors (ANSI) — gracefully disabled when not a TTY
@@ -97,34 +97,58 @@ _awp_whiptail_menu() {
 # ---------------------------------------------------------------------------
 _awp_main_menu() {
   local current="${AWS_PROFILE:-<none>}"
-  local header="AWS Profile Manager v${_AWP_VERSION}  |  Current: ${current}"
-
-  local actions=(
-    "login"    "Login       — aws sso login + export AWS_PROFILE"
-    "switch"   "Switch      — export AWS_PROFILE (no login)"
-    "whoami"   "Who am I   — sts get-caller-identity"
-    "logout"   "Logout      — sso logout + unset AWS_PROFILE"
-    "console"  "Console     — open AWS web console in browser"
-    "quit"     "Quit"
-  )
-
+  local header_text
+  if [[ "$current" == "<none>" ]]; then
+    header_text="╔═══════════════════════════════════════════════════════════╗
+║ Active: ${current}
+╚═══════════════════════════════════════════════════════════╝"
+  else
+    header_text="╔═══════════════════════════════════════════════════════════╗
+║ Active: $(printf '\033[1;32m%s\033[0m' "$current")
+╚═══════════════════════════════════════════════════════════╝"
+  fi
+  
+  # Display version outside of fzf
+  _awp_header "AWS Profile Manager v${_AWP_VERSION}"
+  
   if command -v fzf &>/dev/null; then
-    # Build display list; show tag only in fzf, use --nth for search
     printf "%s\n" \
-      "Login       — aws sso login + export AWS_PROFILE" \
-      "Switch      — export AWS_PROFILE (no login)" \
-      "Who am I   — sts get-caller-identity" \
-      "Logout      — sso logout + unset AWS_PROFILE" \
-      "Console     — open AWS web console in browser" \
-      "Quit" \
-    | _awp_fzf "Action > " "$header"
+      "login      │ SSO login + set profile" \
+      "switch     │ Set profile (no login)" \
+      "whoami     │ Show caller identity" \
+      "logout     │ SSO logout + unset" \
+      "console    │ Open web console" \
+      "quit       │ Exit" \
+    | fzf \
+        --ansi \
+        --prompt="❯ " \
+        --header="$header_text" \
+        --height=50% \
+        --layout=reverse \
+        --border=bold \
+        --border-label="│ SELECT ACTION │" \
+        --border-label-pos=3 \
+        --margin=1 \
+        --padding=1 \
+        --info=hidden \
+        --prompt="❯ main " \
+        --pointer="▌" \
+        --marker="✓" \
+        --color="fg:#d8dee9,bg:#2e3440,hl:#88c0d0,fg+:#eceff4,bg+:#3b4252,gutter:#2e3440,hl+:#8fbcbb,info:#81a1c1,prompt:#81a1c1:bold,pointer:#88c0d0:bold,marker:#a3be8c:bold,spinner:#81a1c1,header:#88c0d0:bold,border:#4c566a,label:#81a1c1:bold"
     return $?
   fi
 
   if command -v whiptail &>/dev/null; then
-    _awp_whiptail_menu "AWS Profile Manager" \
-      "Current profile: ${current}\nSelect an action:" \
-      "${actions[@]}"
+    whiptail --title "AWS Profile Manager" \
+             --menu "Active: ${current}\nSelect:" \
+             20 72 6 \
+             "login"   "SSO login + set profile" \
+             "switch"  "Set profile (no login)" \
+             "whoami"  "Show caller identity" \
+             "logout"  "SSO logout + unset" \
+             "console" "Open web console" \
+             "quit"    "Exit" \
+             3>&1 1>&2 2>&3
     return $?
   fi
 
@@ -141,70 +165,169 @@ _awp_pick_profile() {
   profiles="$(_awp_profiles)" || return 1
   [[ -n "$profiles" ]] || { _awp_error "No profiles found in $cfg"; return 1; }
 
-  local current="${AWS_PROFILE:-}"
-  local header="AWS Profiles  |  Current: ${current:-<none>}  |  ↑↓ navigate  · Enter select  · Esc cancel"
-
+  local current="${AWS_PROFILE:-<none>}"
+  local header_text
+  if [[ "$current" == "<none>" ]]; then
+    header_text="╔═══════════════════════════════════════════════════════════╗
+║ Active: ${current}
+╚═══════════════════════════════════════════════════════════╝"
+  else
+    header_text="╔═══════════════════════════════════════════════════════════╗
+║ Active: $(printf '\033[1;32m%s\033[0m' "$current")
+╚═══════════════════════════════════════════════════════════╝"
+  fi
+  
   if command -v fzf &>/dev/null; then
-    local default_flag=()
-    [[ -n "$current" ]] && default_flag=(--query "$current")
-
-    # Preview script (single-quoted so no parent-shell expansion).
-    # '\'' embeds a literal ' inside a single-quoted string.
-    # AWS_CONFIG_FILE is exported so the preview subprocess inherits it.
     echo "$profiles" | \
       AWS_CONFIG_FILE="$cfg" \
       fzf \
-        --prompt="  Profile > " \
-        --header="$header" \
-        --height=80% \
-        --min-height=20 \
-        --border=rounded \
-        --margin=1,2 \
-        --padding=0,1 \
+        --ansi \
+        --no-mouse \
+        --prompt="❯ " \
+        --header="$header_text" \
+        --height=95% \
+        --layout=reverse \
+        --border=bold \
+        --border-label="│ SELECT PROFILE │" \
+        --border-label-pos=3 \
+        --margin=1 \
+        --padding=1 \
         --info=hidden \
-        --pointer="▶" \
+        --prompt="❯ profiles " \
+        --pointer="▌" \
         --marker="✓" \
-        --color="header:cyan:bold,prompt:blue:bold,pointer:green,marker:green,preview-border:238,preview-label:cyan:bold" \
-        --preview-window="right:52%:wrap:border-left" \
-        --preview-label=" Account Details " \
+        --color="fg:#d8dee9,bg:#2e3440,hl:#88c0d0,fg+:#eceff4,bg+:#3b4252,gutter:#2e3440,hl+:#8fbcbb,info:#81a1c1,prompt:#81a1c1:bold,pointer:#88c0d0:bold,marker:#a3be8c:bold,spinner:#81a1c1,header:#88c0d0:bold,border:#4c566a,label:#81a1c1:bold,preview-bg:#2e3440,preview-fg:#d8dee9,preview-border:#4c566a,preview-label:#81a1c1:bold" \
+        --preview-window="right:55%:wrap:border-bold" \
+        --preview-label="│ ACCOUNT DETAILS │" \
         --preview='
           p="{}"
           cfg="${AWS_CONFIG_FILE:-$HOME/.aws/config}"
 
-          printf "\033[1;36m\n  Profile: %s\033[0m\n" "$p"
-          printf "\033[38;5;238m  %s\033[0m\n\n" "$(printf "─%.0s" {1..40})"
+          # Exit if config missing
+          if [[ ! -f "$cfg" ]]; then
+            echo ""
+            echo "  ERROR: Config file not found"
+            echo "  Path: $cfg"
+            exit 1
+          fi
 
-          awk -v profile="$p" '\''
-            BEGIN { in_s = 0 }
-            /^\[/            { in_s = 0 }
+          # Header box
+          printf "\n"
+          printf "  \033[38;5;67m╔══════════════════════════════════════════╗\033[0m\n"
+          printf "  \033[38;5;67m║\033[0m \033[1;38;5;116m%-40s\033[0m \033[38;5;67m║\033[0m\n" "$p"
+          printf "  \033[38;5;67m╚══════════════════════════════════════════╝\033[0m\n"
+          printf "\n"
+
+          awk -v profile="$p" -v cfg="$cfg" '\''
+            BEGIN {
+              section = ""
+              target_sess = ""
+              found = 0
+              
+              # Strip quotes from profile name
+              gsub(/^[\x27\x22]+|[\x27\x22]+$/, "", profile)
+            }
+
             /^\[profile[[:space:]]/ {
+              section = "profile"
               n = $0
               sub(/^\[profile[[:space:]]+/, "", n)
               sub(/\].*$/, "", n)
-              if (n == profile) in_s = 1
+              current_profile = n
+              if (n == profile) found = 1
+              next
             }
-            /^\[default\]/   { if (profile == "default") in_s = 1 }
-            in_s && !/^\[/ && /=/ {
-              key = $0; val = $0
-              sub(/[[:space:]]*=.*/,    "", key)
-              sub(/^[^=]+=[ \t]*/,     "", val)
+            
+            /^\[default\]/ {
+              section = "profile"
+              current_profile = "default"
+              if (profile == "default") found = 1
+              next
+            }
+            
+            /^\[sso-session[[:space:]]/ {
+              section = "sso-session"
+              n = $0
+              sub(/^\[sso-session[[:space:]]+/, "", n)
+              sub(/\].*$/, "", n)
+              current_session = n
+              next
+            }
+            
+            /^\[/ {
+              section = ""
+              next
+            }
+
+            /=/ {
+              key = $0
+              val = $0
+              sub(/[[:space:]]*=.*/, "", key)
+              sub(/^[^=]+=[ \t]*/, "", val)
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
 
-              # Highlight important fields
-              color = "\033[33m"
-              if (key == "sso_account_id")  color = "\033[1;32m"
-              if (key == "sso_start_url")   color = "\033[1;34m"
-              if (key == "sso_role_name")   color = "\033[1;35m"
-              if (key == "region")          color = "\033[1;33m"
+              if (section == "profile" && current_profile == profile) {
+                profile_data[key] = val
+                if (key == "sso_session") target_sess = val
+              }
 
-              printf "  %s%-26s\033[0m  %s\n", color, key, val
+              if (section == "sso-session") {
+                session_data[current_session, key] = val
+              }
+            }
+
+            END {
+              # Merge session data
+              if (target_sess != "") {
+                for (combined in session_data) {
+                  split(combined, parts, SUBSEP)
+                  if (parts[1] == target_sess) {
+                    k = parts[2]
+                    if (!(k in profile_data)) {
+                      profile_data[k] = session_data[combined]
+                    }
+                  }
+                }
+              }
+
+              # If no data found, show error
+              if (length(profile_data) == 0) {
+                printf "  \033[38;5;167mNo data found for profile: %s\033[0m\n", profile
+                printf "\n"
+                exit
+              }
+
+              # Labels and colors
+              labels["sso_account_id"] = "ACCOUNT ID";  colors["sso_account_id"] = "\033[1;38;5;108m"
+              labels["sso_start_url"] = "SSO URL";      colors["sso_start_url"] = "\033[1;38;5;109m"
+              labels["sso_role_name"] = "ROLE";         colors["sso_role_name"] = "\033[1;38;5;140m"
+              labels["region"] = "REGION";              colors["region"] = "\033[1;38;5;180m"
+              labels["sso_region"] = "SSO REGION";      colors["sso_region"] = "\033[38;5;144m"
+              labels["sso_session"] = "SESSION";        colors["sso_session"] = "\033[38;5;109m"
+
+              keys[1] = "sso_account_id"
+              keys[2] = "sso_start_url"
+              keys[3] = "sso_role_name"
+              keys[4] = "region"
+              keys[5] = "sso_region"
+              keys[6] = "sso_session"
+
+              # Display priority fields
+              for (i = 1; i <= 6; i++) {
+                k = keys[i]
+                if (k in profile_data) {
+                  label = (k in labels) ? labels[k] : toupper(k)
+                  color = (k in colors) ? colors[k] : "\033[38;5;145m"
+                  printf "  %s%-15s\033[0m \033[38;5;59m│\033[0m \033[38;5;188m%s\033[0m\n", color, label, profile_data[k]
+                  delete profile_data[k]
+                }
+              }
+
+              # Skip displaying remaining fields (like sso_registration_scopes)
             }
           '\'' "$cfg"
-
-          printf "\n\033[38;5;238m  Config: %s\033[0m\n" "$cfg"
-        ' \
-        "${default_flag[@]}"
+        '
     return $?
   fi
 
@@ -213,7 +336,11 @@ _awp_pick_profile() {
     while IFS= read -r p; do
       items+=("$p" " ")
     done <<< "$profiles"
-    _awp_whiptail_menu "AWS Profiles" "Choose a profile:" "${items[@]}"
+    whiptail --title "AWS Profiles" \
+             --menu "Active: ${current}\nChoose:" \
+             20 72 12 \
+             "${items[@]}" \
+             3>&1 1>&2 2>&3
     return $?
   fi
 
@@ -234,7 +361,7 @@ _awp_open_console() {
 
   local url="https://console.aws.amazon.com/console/home?region=${region}"
 
-  _awp_info "Opening AWS Console for profile '${profile}' (region: ${region})"
+  _awp_info "Opening AWS Console for profile ${profile} in region ${region}"
 
   if command -v open &>/dev/null; then
     open "$url"
@@ -281,20 +408,25 @@ aws-profile() {
 
   command -v aws &>/dev/null || { _awp_error "aws CLI not found in PATH."; return 127; }
 
-  local action
-  action="$(_awp_main_menu)" || return 0  # user pressed Escape / Ctrl-C = quiet exit
+  # Main loop - keep showing menu until user quits
+  while true; do
+    local action
+    action="$(_awp_main_menu)" || return 0  # Esc on main menu = exit
 
-  # Normalise fzf full-text selection → key token
-  case "$action" in
-    Login*)   action="login"   ;;
-    Switch*)  action="switch"  ;;
-    "Who am"*) action="whoami" ;;
-    Logout*)  action="logout"  ;;
-    Console*) action="console" ;;
-    Quit*)    return 0         ;;
-  esac
+    # Normalise fzf full-text selection → key token
+    case "$action" in
+      login*)   action="login"   ;;
+      switch*)  action="switch"  ;;
+      whoami*)  action="whoami"  ;;
+      logout*)  action="logout"  ;;
+      console*) action="console" ;;
+      quit*)    return 0         ;;
+    esac
 
-  _awp_run_action "$action"
+    # Run action - if it returns 0, continue loop (back to menu)
+    # If user presses Esc in submenu, it returns 1 and loops back
+    _awp_run_action "$action" || continue
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -307,20 +439,34 @@ _awp_run_action() {
   case "$action" in
 
     login)
-      profile="$(_awp_pick_profile)" || return 1
+      profile="$(_awp_pick_profile)" || return 0  # Esc = back to menu
 
       _awp_info "Running: aws sso login --profile ${profile}"
       AWS_PAGER="" aws --no-cli-pager sso login --profile "$profile" \
-        || { _awp_error "SSO login failed."; return 1; }
+        || { _awp_error "SSO login failed."; return 0; }
 
       export AWS_PROFILE="$profile"
       _awp_ok "Login successful — AWS_PROFILE=${profile}"
       ;;
 
     switch)
-      profile="$(_awp_pick_profile)" || return 1
-      export AWS_PROFILE="$profile"
-      _awp_ok "Switched — AWS_PROFILE=${profile}"
+      profile="$(_awp_pick_profile)" || return 0  # Esc = back to menu
+      
+      # Check if profile has valid credentials
+      _awp_info "Checking credentials for profile ${profile}..."
+      if AWS_PAGER="" aws --no-cli-pager sts get-caller-identity --profile "$profile" &>/dev/null; then
+        # Already logged in, just switch
+        export AWS_PROFILE="$profile"
+        _awp_ok "Switched — AWS_PROFILE=${profile}"
+      else
+        # Not logged in, need SSO login first
+        _awp_warn "Profile not logged in. Running SSO login..."
+        AWS_PAGER="" aws --no-cli-pager sso login --profile "$profile" \
+          || { _awp_error "SSO login failed."; return 0; }
+        
+        export AWS_PROFILE="$profile"
+        _awp_ok "Login successful — AWS_PROFILE=${profile}"
+      fi
       ;;
 
     whoami)
@@ -346,7 +492,7 @@ _awp_run_action() {
 
     *)
       _awp_error "Unknown action: ${action}"
-      return 1
+      return 0
       ;;
   esac
 }
