@@ -16,7 +16,7 @@ readonly _AWS_PROFILE_LOADED=1
 # ---------------------------------------------------------------------------
 # Version
 # ---------------------------------------------------------------------------
-readonly _AWP_VERSION="1.0.0"
+readonly _AWP_VERSION="1.1.0"
 
 # ---------------------------------------------------------------------------
 # Colors (ANSI) — gracefully disabled when not a TTY
@@ -133,20 +133,78 @@ _awp_main_menu() {
 }
 
 # ---------------------------------------------------------------------------
-# Internal: profile picker
+# Internal: profile picker  (with fzf right-side preview panel)
 # ---------------------------------------------------------------------------
 _awp_pick_profile() {
+  local cfg="${AWS_CONFIG_FILE:-$HOME/.aws/config}"
   local profiles
   profiles="$(_awp_profiles)" || return 1
-  [[ -n "$profiles" ]] || { _awp_error "No profiles found in ${AWS_CONFIG_FILE:-$HOME/.aws/config}"; return 1; }
+  [[ -n "$profiles" ]] || { _awp_error "No profiles found in $cfg"; return 1; }
 
   local current="${AWS_PROFILE:-}"
-  local header="AWS Profiles  |  Current: ${current:-<none>}"
+  local header="AWS Profiles  |  Current: ${current:-<none>}  |  ↑↓ navigate  · Enter select  · Esc cancel"
 
   if command -v fzf &>/dev/null; then
     local default_flag=()
     [[ -n "$current" ]] && default_flag=(--query "$current")
-    echo "$profiles" | _awp_fzf "Profile > " "$header" "${default_flag[@]}"
+
+    # Preview script (single-quoted so no parent-shell expansion).
+    # '\'' embeds a literal ' inside a single-quoted string.
+    # AWS_CONFIG_FILE is exported so the preview subprocess inherits it.
+    echo "$profiles" | \
+      AWS_CONFIG_FILE="$cfg" \
+      fzf \
+        --prompt="  Profile > " \
+        --header="$header" \
+        --height=80% \
+        --min-height=20 \
+        --border=rounded \
+        --margin=1,2 \
+        --padding=0,1 \
+        --info=hidden \
+        --pointer="▶" \
+        --marker="✓" \
+        --color="header:cyan:bold,prompt:blue:bold,pointer:green,marker:green,preview-border:238,preview-label:cyan:bold" \
+        --preview-window="right:52%:wrap:border-left" \
+        --preview-label=" Account Details " \
+        --preview='
+          p="{}"
+          cfg="${AWS_CONFIG_FILE:-$HOME/.aws/config}"
+
+          printf "\033[1;36m\n  Profile: %s\033[0m\n" "$p"
+          printf "\033[38;5;238m  %s\033[0m\n\n" "$(printf "─%.0s" {1..40})"
+
+          awk -v profile="$p" '\''
+            BEGIN { in_s = 0 }
+            /^\[/            { in_s = 0 }
+            /^\[profile[[:space:]]/ {
+              n = $0
+              sub(/^\[profile[[:space:]]+/, "", n)
+              sub(/\].*$/, "", n)
+              if (n == profile) in_s = 1
+            }
+            /^\[default\]/   { if (profile == "default") in_s = 1 }
+            in_s && !/^\[/ && /=/ {
+              key = $0; val = $0
+              sub(/[[:space:]]*=.*/,    "", key)
+              sub(/^[^=]+=[ \t]*/,     "", val)
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+
+              # Highlight important fields
+              color = "\033[33m"
+              if (key == "sso_account_id")  color = "\033[1;32m"
+              if (key == "sso_start_url")   color = "\033[1;34m"
+              if (key == "sso_role_name")   color = "\033[1;35m"
+              if (key == "region")          color = "\033[1;33m"
+
+              printf "  %s%-26s\033[0m  %s\n", color, key, val
+            }
+          '\'' "$cfg"
+
+          printf "\n\033[38;5;238m  Config: %s\033[0m\n" "$cfg"
+        ' \
+        "${default_flag[@]}"
     return $?
   fi
 
