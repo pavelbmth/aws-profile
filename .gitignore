@@ -12,6 +12,9 @@ Thumbs.db
 # Test artifacts
 tests/tmp/
 
+# Local images / screenshots
+image/
+
 # Shell history in project dir
 .bash_history
 .zsh_history
