@@ -2,7 +2,7 @@
 
 > Lightweight AWS Profile Manager TUI for your terminal — switch IAM/SSO profiles with arrow keys.
 
-[![ShellCheck](https://github.com/YOUR_USERNAME/aws-profile/actions/workflows/lint.yml/badge.svg)](https://github.com/YOUR_USERNAME/aws-profile/actions/workflows/lint.yml)
+[![ShellCheck](https://github.com/pavelbmth/aws-profile/actions/workflows/lint.yml/badge.svg)](https://github.com/pavelbmth/aws-profile/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Shell](https://img.shields.io/badge/shell-bash%20%7C%20zsh-blue)
 
@@ -57,7 +57,7 @@ $ aws-profile
 ### One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/aws-profile/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/pavelbmth/aws-profile/main/install.sh | bash
 ```
 
 Then restart your shell or run:
@@ -71,7 +71,7 @@ source ~/.zshrc   # or ~/.bashrc
 1. Clone or download this repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/aws-profile.git ~/.aws-profile
+git clone https://github.com/pavelbmth/aws-profile.git ~/.aws-profile
 ```
 
 2. Source the script in your shell RC file:
@@ -192,4 +192,4 @@ Contributions are welcome! Please open an issue or pull request.
 
 ## License
 
-[MIT](LICENSE) © YOUR_NAME
+[MIT](LICENSE) © pavelbmth

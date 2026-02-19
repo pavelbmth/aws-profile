@@ -2,11 +2,11 @@
 # =============================================================================
 # aws-profile installer
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/aws-profile/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/pavelbmth/aws-profile/main/install.sh | bash
 # =============================================================================
 set -euo pipefail
 
-REPO_URL="https://raw.githubusercontent.com/YOUR_USERNAME/aws-profile/main"
+REPO_URL="https://raw.githubusercontent.com/pavelbmth/aws-profile/main"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.aws-profile}"
 SCRIPT_NAME="aws-profile.sh"
 SHELL_RC=""
